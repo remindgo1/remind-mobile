@@ -1,0 +1,87 @@
+name: Phase 1 DEV and TEST deployment
+
+on:
+  push:
+    branches: [dev, test]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [dev, test]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify backend
+        working-directory: backend
+        run: |
+          python -m pip install -e ".[dev]"
+          pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify mobile app
+        working-directory: mobile
+        run: |
+          npm ci
+          npm run typecheck
+
+  backend:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: remind-api-${{ github.event.inputs.environment || github.ref_name }}
+          source: ./backend
+          region: ${{ vars.GCP_REGION }}
+          env_vars: |-
+            FIREBASE_PROJECT_ID=${{ vars.FIREBASE_PROJECT_ID }}
+          secrets: |-
+            DATABASE_URL=DATABASE_URL:latest
+          flags: --service-account=${{ vars.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }} --add-cloudsql-instances=${{ vars.CLOUD_SQL_INSTANCE }} --allow-unauthenticated
+
+  mobile:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+      - name: Build internal DEV or TEST app
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+          EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ vars.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ vars.EXPO_PUBLIC_FIREBASE_APP_ID }}
+        run: npx eas-cli@latest build --platform all --profile "${{ (github.event.inputs.environment || github.ref_name) == 'dev' && 'development' || 'preview' }}" --non-interactive --no-wait

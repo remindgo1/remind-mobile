@@ -1,0 +1,47 @@
+# Python
+
+**pycache**/
+*.py[cod]
+.pytest_cache/
+.test-deps/
+.venv/
+venv/
+*.egg-info/
+
+# Local databases
+
+backend/remind-dev.db
+*.sqlite
+*.sqlite3
+
+# Mobile
+
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/ios/
+mobile/android/
+
+# Environment files and local secrets
+
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Credentials and certificates
+
+secrets/
+*.pem
+*.p12
+*.mobileprovision
+service-account*.json
+firebase-adminsdk*.json
+
+# Build and editor output
+
+.DS_Store
+Thumbs.db
+.vscode/
