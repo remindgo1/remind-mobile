@@ -14,6 +14,11 @@ module.exports = ({ config }) => ({
   extra: {
     ...config.extra,
     appEnvironment,
-    eas: { projectId: process.env.EAS_PROJECT_ID },
+    eas: {
+      ...config.extra?.eas,
+      projectId:
+        process.env.EAS_PROJECT_ID ||
+        config.extra?.eas?.projectId,
+    },
   },
 });
