@@ -7,7 +7,16 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "ios": { "supportsTablet": true },
-    "android": { "package": "com.remind.care" }
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.remind.care"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "23bb53ca-d999-4de3-9d82-741aa543fbae"
+      }
+    }
   }
 }
